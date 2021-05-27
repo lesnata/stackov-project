@@ -22,7 +22,7 @@ class PostgresMultipleUploadsOperator(BaseOperator):
             cursor = conn.cursor()
 
             for i in processed_answer[0]['items']:
-                user_id = i['user'].get("user_id")
+                user_id = i['user']['user_id']
                 load_dts = datetime.now()
                 display_name = i['user']['display_name'] or 'NULL'
                 profile_image = i['user']['profile_image'] or 'NULL'
@@ -34,31 +34,28 @@ class PostgresMultipleUploadsOperator(BaseOperator):
                 reputation = i['user']['reputation']
                 rec_src = 'stackoverflow'
 
-                request_1 = f"""
-                INSERT INTO hub_user
-                (user_id, load_dts, rec_src)
-                VALUES
-                ({user_id}, '{load_dts}', '{rec_src}')"""
-
-                cursor.execute(request_1)
-
-                request_2 = f"""
-                INSERT INTO so_sat_user 
-                (user_id_h_fk, load_dts, display_name, profile_image, user_type, user_link, rec_src, hash_diff) 
-                VALUES 
-                ({user_id}, '{load_dts}', '{display_name}', '{profile_image}', '{user_type}', '{user_link}', '{rec_src}', 
-                (MD5({user_id} || '{load_dts}' || '{display_name}' || '{profile_image}' || '{user_type}' || '{user_link}' || '{rec_src}'))); 
+                request = f"""
+                    WITH first_insert AS (
+                        INSERT INTO hub_user
+                        (user_id, load_dts, rec_src)
+                        VALUES
+                        ({user_id}, '{load_dts}', '{rec_src}')
+                    ), 
+                    second_insert AS (
+                        INSERT INTO so_sat_user 
+                        (user_id_h_fk, load_dts, display_name, profile_image, user_type, user_link, rec_src, hash_diff) 
+                        VALUES 
+                        ({user_id}, '{load_dts}', '{display_name}', '{profile_image}', '{user_type}', '{user_link}', '{rec_src}', 
+                        (MD5({user_id} || '{load_dts}' || '{display_name}' || '{profile_image}' || '{user_type}' || '{user_link}' || '{rec_src}')))
+                    )
+                    INSERT INTO so_sat_user_score 
+                    (user_id_h_fk, load_dts, score, accept_rate, post_count, reputation, rec_src, hash_diff) 
+                    VALUES 
+                    ({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}', 
+                    (MD5(CONCAT({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}')))
+                    );
+                
                 """
-                cursor.execute(request_2)
 
-                request_3 = f"""
-                INSERT INTO so_sat_user_score 
-                (user_id_h_fk, load_dts, score, accept_rate, post_count, reputation, rec_src, hash_diff) 
-                VALUES 
-                ({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}', 
-                (MD5(CONCAT({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}'))));
-            
-                """
-                cursor.execute(request_3)
-
+                cursor.execute(request)
 
