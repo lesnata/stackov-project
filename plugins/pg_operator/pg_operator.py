@@ -19,7 +19,6 @@ class PostgresMultipleUploadsOperator(BaseOperator):
         json_data = ast.literal_eval(self.clean_data_list)
         with closing(pg.get_conn()) as conn:
             cursor = conn.cursor()
-            print(f'clean_data_list {type(json_data)}')
             for i in json_data[0]:
 
                 request = f"""
