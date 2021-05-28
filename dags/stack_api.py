@@ -1,7 +1,11 @@
 import os
+import ast
 import json
 import logging
+from collections import namedtuple
 from datetime import datetime, timedelta
+from typing import List
+
 from pandas import json_normalize
 from botocore.exceptions import ClientError
 from airflow.models import DAG
@@ -11,6 +15,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from pg_operator.pg_operator import PostgresMultipleUploadsOperator
+
 
 BUCKET_NAME = 'stackov-staging'
 REGION = "eu-central-1"
@@ -65,7 +70,44 @@ def _uploading_to_s3():
         raise ValueError("----------CAN'T UPLOAD FILE------------")
 
 
-with DAG('stack_to_s3', schedule_interval='@daily',
+def _db_data_extractor(ti) -> List[namedtuple]:
+        top_answerers = ti.xcom_pull(task_ids=['extracting_top_answerers'])
+        #processed_answer = ast.literal_eval(top_answerers)
+        # clean_data = []
+        # Row = namedtuple('Row', ["user_pk", "load_dts", "display_name",
+        #                          "profile_image", "user_type", "user_link",
+        #                          "score", "post_count", "accept_rate",
+        #                          "reputation", "rec_src"])
+        #
+        # for i in top_answerers[0]['items']:
+        #     r = Row(i['user']['user_id'], datetime.now(), i['user']['display_name'] or 'NULL',
+        #             i['user']['profile_image'] or 'NULL', i['user']['user_type'], i['user']['link'],
+        #             i['score'] or 'NULL', i['post_count'], i['user'].get('accept_rate', 'NULL'),
+        #             i['user']['reputation'], 'stackoverflow')
+        #     clean_data.append(r)
+        # print(f'clean_data {clean_data}')
+        # return clean_data
+
+        clean_data_list = []
+        for i in top_answerers[0]['items']:
+            clean_data = dict()
+            clean_data["user_pk"] = i['user']['user_id']
+            clean_data["load_dts"] = str(datetime.now())
+            clean_data["display_name"] = i['user']['display_name'] or 'NULL'
+            clean_data["profile_image"] = i['user']['profile_image'] or 'NULL'
+            clean_data["user_type"] = i['user']['user_type']
+            clean_data["user_link"] = i['user']['link']
+            clean_data["score"] = i['score'] or 'NULL'
+            clean_data["post_count"] = i['post_count']
+            clean_data["accept_rate"] = i['user'].get('accept_rate', 'NULL')
+            clean_data["reputation"] = i['user']['reputation']
+            clean_data["rec_src"] = 'stackoverflow'
+            clean_data_list.append(clean_data)
+        print(f'clean_data_list {clean_data_list}')
+        return clean_data_list
+
+
+with DAG('stack_api', schedule_interval='@daily',
          default_args=default_args, catchup=False) as dag:
 
     is_api_available = HttpSensor(
@@ -104,10 +146,15 @@ with DAG('stack_to_s3', schedule_interval='@daily',
         sql='sql/CREATE_TABLE.sql'
     )
 
+    db_data_extractor = PythonOperator(
+        task_id="db_data_extractor",
+        python_callable=_db_data_extractor
+    )
+
     db_query_upload_data = PostgresMultipleUploadsOperator(
         task_id='db_query_upload_data',
-        top_answerers="{{ ti.xcom_pull(task_ids=['extracting_top_answerers']) }}"
+        clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}"
     )
 
     is_api_available >> extracting_top_answerers >> processing_answer >> creating_bucket >> uploading_to_s3 \
-    >> db_query_create_table >> db_query_upload_data
+    >> db_query_create_table >> db_data_extractor >> db_query_upload_data

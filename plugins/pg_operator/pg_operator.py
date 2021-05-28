@@ -6,53 +6,59 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
 class PostgresMultipleUploadsOperator(BaseOperator):
-    template_fields = ['top_answerers']
+    template_fields = ['clean_data_list']
 
-    def __init__(self, top_answerers,
+    def __init__(self, clean_data_list,
                  postgres_conn_id="db_postgres",
                  *args, **kwargs):
         super(PostgresMultipleUploadsOperator, self).__init__(*args, **kwargs)
         self.postgres_conn_id = postgres_conn_id
-        self.top_answerers = top_answerers
+        self.clean_data_list = clean_data_list
 
     def execute(self, context):
         pg = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema='postgres')
+        json_data = ast.literal_eval(self.clean_data_list)
         with closing(pg.get_conn()) as conn:
-            processed_answer = ast.literal_eval(self.top_answerers)
             cursor = conn.cursor()
-
-            for i in processed_answer[0]['items']:
-                user_id = i['user']['user_id']
-                load_dts = datetime.now()
-                display_name = i['user']['display_name'] or 'NULL'
-                profile_image = i['user']['profile_image'] or 'NULL'
-                user_type = i['user']['user_type']
-                user_link = i['user']['link']
-                score = i['score'] or 'NULL'
-                post_count = i['post_count']
-                accept_rate = i['user'].get('accept_rate', 'NULL')
-                reputation = i['user']['reputation']
-                rec_src = 'stackoverflow'
+            print(f'clean_data_list {type(json_data)}')
+            for i in json_data[0]:
+            # for k, v in self.clean_data.items():
+            #     user_bk = i['user']['user_id']
+            #     load_dts = datetime.now()
+            #     display_name = i['user']['display_name'] or 'NULL'
+            #     profile_image = i['user']['profile_image'] or 'NULL'
+            #     user_type = i['user']['user_type']
+            #     user_link = i['user']['link']
+            #     score = i['score'] or 'NULL'
+            #     post_count = i['post_count']
+            #     accept_rate = i['user'].get('accept_rate', 'NULL')
+            #     reputation = i['user']['reputation']
+            #     rec_src = 'stackoverflow'
 
                 request = f"""
                     WITH first_insert AS (
                         INSERT INTO hub_user
-                        (user_id, load_dts, rec_src)
+                        (user_bk, user_pk, load_dts, rec_src)
                         VALUES
-                        ({user_id}, '{load_dts}', '{rec_src}')
+                        ((MD5({i["user_pk"]} || '{i["rec_src"]}')), {i["user_pk"]}, '{i["load_dts"]}', '{i["rec_src"]}')
+                        RETURNING user_pk
                     ), 
                     second_insert AS (
                         INSERT INTO so_sat_user 
-                        (user_id_h_fk, load_dts, display_name, profile_image, user_type, user_link, rec_src, hash_diff) 
+                        (user_h_fk, load_dts, display_name, profile_image, user_type, user_link, rec_src, hash_diff) 
                         VALUES 
-                        ({user_id}, '{load_dts}', '{display_name}', '{profile_image}', '{user_type}', '{user_link}', '{rec_src}', 
-                        (MD5({user_id} || '{load_dts}' || '{display_name}' || '{profile_image}' || '{user_type}' || '{user_link}' || '{rec_src}')))
+                        ( (SELECT user_pk from first_insert), '{i["load_dts"]}', '{i["display_name"]}', '{i["profile_image"]}', 
+                        '{i["user_type"]}', '{i["user_link"]}', '{i["rec_src"]}', 
+                        (MD5((SELECT user_pk from first_insert) || '{i["load_dts"]}' || '{i["display_name"]}' 
+                        || '{i["profile_image"]}' || '{i["user_type"]}' || '{i["user_link"]}' || '{i["rec_src"]}')))
                     )
                     INSERT INTO so_sat_user_score 
-                    (user_id_h_fk, load_dts, score, accept_rate, post_count, reputation, rec_src, hash_diff) 
+                    (user_h_fk, load_dts, score, accept_rate, post_count, reputation, rec_src, hash_diff) 
                     VALUES 
-                    ({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}', 
-                    (MD5(CONCAT({user_id}, '{load_dts}', {score}, {accept_rate}, {post_count}, {reputation}, '{rec_src}')))
+                    ( (SELECT user_pk from first_insert), '{i["load_dts"]}', {i["score"]}, {i["accept_rate"]}, 
+                    {i["post_count"]}, {i["reputation"]}, '{i["rec_src"]}', 
+                    (MD5(CONCAT( (SELECT user_pk from first_insert), '{i["load_dts"]}', {i["score"]}, {i["accept_rate"]}, 
+                    {i["post_count"]}, {i["reputation"]}, '{i["rec_src"]}')))
                     );
                 
                 """
