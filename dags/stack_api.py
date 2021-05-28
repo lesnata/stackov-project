@@ -87,7 +87,7 @@ def _db_data_extractor(ti) -> List[namedtuple]:
             clean_data["reputation"] = i['user']['reputation']
             clean_data["rec_src"] = 'stackoverflow'
             clean_data_list.append(clean_data)
-        print(f'clean_data_list {clean_data_list}')
+        logger.info(f"-------- DB DATA LIST OF {len(clean_data_list)} ITEMS READY FOR UPLOADING ---------")
         return clean_data_list
 
 
