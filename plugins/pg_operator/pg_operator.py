@@ -1,6 +1,5 @@
 import ast
 from contextlib import closing
-from datetime import datetime
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -22,18 +21,6 @@ class PostgresMultipleUploadsOperator(BaseOperator):
             cursor = conn.cursor()
             print(f'clean_data_list {type(json_data)}')
             for i in json_data[0]:
-            # for k, v in self.clean_data.items():
-            #     user_bk = i['user']['user_id']
-            #     load_dts = datetime.now()
-            #     display_name = i['user']['display_name'] or 'NULL'
-            #     profile_image = i['user']['profile_image'] or 'NULL'
-            #     user_type = i['user']['user_type']
-            #     user_link = i['user']['link']
-            #     score = i['score'] or 'NULL'
-            #     post_count = i['post_count']
-            #     accept_rate = i['user'].get('accept_rate', 'NULL')
-            #     reputation = i['user']['reputation']
-            #     rec_src = 'stackoverflow'
 
                 request = f"""
                     WITH first_insert AS (

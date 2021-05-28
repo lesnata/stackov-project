@@ -72,22 +72,6 @@ def _uploading_to_s3():
 
 def _db_data_extractor(ti) -> List[namedtuple]:
         top_answerers = ti.xcom_pull(task_ids=['extracting_top_answerers'])
-        #processed_answer = ast.literal_eval(top_answerers)
-        # clean_data = []
-        # Row = namedtuple('Row', ["user_pk", "load_dts", "display_name",
-        #                          "profile_image", "user_type", "user_link",
-        #                          "score", "post_count", "accept_rate",
-        #                          "reputation", "rec_src"])
-        #
-        # for i in top_answerers[0]['items']:
-        #     r = Row(i['user']['user_id'], datetime.now(), i['user']['display_name'] or 'NULL',
-        #             i['user']['profile_image'] or 'NULL', i['user']['user_type'], i['user']['link'],
-        #             i['score'] or 'NULL', i['post_count'], i['user'].get('accept_rate', 'NULL'),
-        #             i['user']['reputation'], 'stackoverflow')
-        #     clean_data.append(r)
-        # print(f'clean_data {clean_data}')
-        # return clean_data
-
         clean_data_list = []
         for i in top_answerers[0]['items']:
             clean_data = dict()
