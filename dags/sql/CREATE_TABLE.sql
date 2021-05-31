@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS SO_SAT_POST
  rec_src   varchar NOT NULL,
  hash_diff varchar NOT NULL,
  CONSTRAINT PK_sat_post PRIMARY KEY ( post_h_fk, load_dts ),
- CONSTRAINT FK_33 FOREIGN KEY ( post_h_fk ) REFERENCES HUB_POST ( post_pk )
+--  CONSTRAINT FK_33 FOREIGN KEY ( post_h_fk ) REFERENCES HUB_POST ( post_pk )
 );
 
 CREATE INDEX IF NOT EXISTS fkIdx_34 ON SO_SAT_POST
