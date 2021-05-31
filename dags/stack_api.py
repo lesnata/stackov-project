@@ -77,13 +77,13 @@ def _db_data_extractor(ti) -> List[namedtuple]:
             clean_data = dict()
             clean_data["user_pk"] = i['user']['user_id']
             clean_data["load_dts"] = str(datetime.now())
-            clean_data["display_name"] = i['user']['display_name'] or 'NULL'
-            clean_data["profile_image"] = i['user']['profile_image'] or 'NULL'
+            clean_data["display_name"] = i['user']['display_name'] or None
+            clean_data["profile_image"] = i['user']['profile_image'] or None
             clean_data["user_type"] = i['user']['user_type']
             clean_data["user_link"] = i['user']['link']
-            clean_data["score"] = i['score'] or 'NULL'
+            clean_data["score"] = i['score'] or None
             clean_data["post_count"] = i['post_count']
-            clean_data["accept_rate"] = i['user'].get('accept_rate', 'NULL')
+            clean_data["accept_rate"] = i['user'].get('accept_rate', None)
             clean_data["reputation"] = i['user']['reputation']
             clean_data["rec_src"] = 'stackoverflow'
             clean_data_list.append(clean_data)
@@ -137,7 +137,8 @@ with DAG('stack_api', schedule_interval='@daily',
 
     db_query_upload_data = PostgresMultipleUploadsOperator(
         task_id='db_query_upload_data',
-        clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}"
+        clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
+        sql_file_path="./dags/sql/STACKOV_INSERT_INTO.sql"
     )
 
     is_api_available >> extracting_top_answerers >> processing_answer >> creating_bucket >> uploading_to_s3 \
