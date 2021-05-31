@@ -75,7 +75,7 @@ def _db_data_extractor(ti) -> List[namedtuple]:
         clean_data_list = []
         for i in top_answerers[0]['items']:
             clean_data = dict()
-            clean_data["user_pk"] = i['user']['user_id']
+            clean_data["user_bk"] = i['user']['user_id']
             clean_data["load_dts"] = str(datetime.now())
             clean_data["display_name"] = i['user']['display_name'] or None
             clean_data["profile_image"] = i['user']['profile_image'] or None
@@ -138,7 +138,9 @@ with DAG('stack_api', schedule_interval='@daily',
     db_query_upload_data = PostgresMultipleUploadsOperator(
         task_id='db_query_upload_data',
         clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
-        sql_file_path="./dags/sql/STACKOV_INSERT_INTO.sql"
+        sql_file_path_hub_user="./dags/sql/STACKOV_INSERT_HUB_USER.sql",
+        sql_file_path_sat_user="./dags/sql/STACKOV_INSERT_SAT_USER.sql",
+        sql_file_path_sat_user_score="./dags/sql/STACKOV_INSERT_SAT_USER_SCORE.sql"
     )
 
     is_api_available >> extracting_top_answerers >> processing_answer >> creating_bucket >> uploading_to_s3 \
