@@ -15,7 +15,7 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from pg_operator.pg_operator import PostgresMultipleUploadsOperator
-
+from airflow.utils.task_group import TaskGroup
 
 BUCKET_NAME = 'stackov-staging'
 REGION = "eu-central-1"
@@ -135,13 +135,24 @@ with DAG('stack_api', schedule_interval='@daily',
         python_callable=_db_data_extractor
     )
 
-    db_query_upload_data = PostgresMultipleUploadsOperator(
-        task_id='db_query_upload_data',
-        clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
-        sql_file_path_hub_user="./dags/sql/STACKOV_INSERT_HUB_USER.sql",
-        sql_file_path_sat_user="./dags/sql/STACKOV_INSERT_SAT_USER.sql",
-        sql_file_path_sat_user_score="./dags/sql/STACKOV_INSERT_SAT_USER_SCORE.sql"
-    )
+    with TaskGroup('db_query_upload_data') as db_query_upload_data:
+        hub_user = PostgresMultipleUploadsOperator(
+            task_id='insert_hub_user',
+            clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
+            sql_insert_file="./dags/sql/STACKOV_INSERT_HUB_USER.sql",
+        )
+
+        sat_user = PostgresMultipleUploadsOperator(
+            task_id='insert_sat_user',
+            clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
+            sql_insert_file="./dags/sql/STACKOV_INSERT_SAT_USER.sql"
+        )
+
+        sat_user_score = PostgresMultipleUploadsOperator(
+            task_id='insert_sat_user_score',
+            clean_data_list="{{ ti.xcom_pull(task_ids=['db_data_extractor']) }}",
+            sql_insert_file="./dags/sql/STACKOV_INSERT_SAT_USER_SCORE.sql"
+        )
 
     is_api_available >> extracting_top_answerers >> processing_answer >> creating_bucket >> uploading_to_s3 \
     >> db_query_create_table >> db_data_extractor >> db_query_upload_data

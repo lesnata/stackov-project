@@ -81,8 +81,8 @@ CREATE TABLE IF NOT EXISTS SO_SAT_USER
  user_link          varchar NOT NULL,
  rec_src       varchar NOT NULL,
  hash_diff     varchar NOT NULL,
- CONSTRAINT PK_sat_user PRIMARY KEY ( user_h_fk, load_dts ),
- CONSTRAINT FK_22 FOREIGN KEY ( user_h_fk ) REFERENCES HUB_USER ( user_pk )
+ CONSTRAINT PK_sat_user PRIMARY KEY ( user_h_fk, load_dts )
+--  CONSTRAINT FK_22 FOREIGN KEY ( user_h_fk ) REFERENCES HUB_USER ( user_pk )
 );
 
 CREATE INDEX IF NOT EXISTS fkIdx_23 ON SO_SAT_USER
@@ -104,8 +104,8 @@ CREATE TABLE IF NOT EXISTS SO_SAT_USER_SCORE
  reputation  numeric NOT NULL,
  rec_src     varchar NOT NULL,
  hash_diff   varchar NOT NULL,
- CONSTRAINT PK_sat_user_score PRIMARY KEY ( user_h_fk, load_dts ),
- CONSTRAINT FK_52 FOREIGN KEY ( user_h_fk ) REFERENCES HUB_USER ( user_pk )
+ CONSTRAINT PK_sat_user_score PRIMARY KEY ( user_h_fk, load_dts )
+--  CONSTRAINT FK_52 FOREIGN KEY ( user_h_fk ) REFERENCES HUB_USER ( user_pk )
 );
 
 CREATE INDEX IF NOT EXISTS fkIdx_53 ON SO_SAT_USER_SCORE
